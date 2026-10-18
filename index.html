@@ -124,6 +124,29 @@
       .chat-head{padding:11px 12px}
       .composer-wrap{padding:9px}
     }
+
+    /* Polished responsive finish */
+    body { background: radial-gradient(ellipse at 12% 0%, #d9efff 0%, transparent 36%), linear-gradient(160deg,#f4faff 0%,#eaf5ff 100%); }
+    header { backdrop-filter: blur(16px); border-color:#d9eaf8; }
+    .workspace { align-items:stretch; }
+    .sidebar { box-shadow:0 16px 42px #397cb012; backdrop-filter:blur(16px); }
+    .main-chat .chat { box-shadow:0 16px 42px #397cb012; border-color:#d9eaf8; }
+    .chat-entry { transition:background .16s ease,border-color .16s ease,transform .16s ease; }
+    .chat-entry:hover { background:#eef8ff; transform:translateY(-1px); }
+    button { transition:filter .15s ease,transform .15s ease; }
+    button:not(:disabled):hover { filter:brightness(1.025); }
+    button:not(:disabled):active { transform:scale(.98); }
+    .composer-wrap { background:linear-gradient(180deg,#fbfdff,#f4faff); }
+    .send { min-width:44px; }
+    .msg { box-shadow:0 3px 12px #2a75a809; }
+    .modal { box-shadow:0 28px 90px #163d6040; }
+    @media(max-width:680px) {
+      .sidebar { width:62px; flex-basis:62px; }
+      .sidebar-top { margin-bottom:8px; }
+      .chat-list { gap:8px; }
+      .main-chat .chat { min-height:calc(100dvh - 88px); }
+    }
+
   </style>
 </head>
 <body>
@@ -186,7 +209,6 @@
 
   const $ = id => document.getElementById(id);
   const STORAGE_KEY = "telegram_ai_chat_manager_v2";
-  const STORAGE_KEY = "telegram_ai_chat_manager_v2";
   let chats = [];
   let activeId = null;
   let pendingFiles = [];
@@ -219,28 +241,6 @@
   }
   loadState();
 
-  function saveState() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({chats, activeId}));
-    } catch (err) {
-      console.warn("Не удалось сохранить чаты в этом браузере:", err);
-    }
-  }
-  function loadState() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if (saved && Array.isArray(saved.chats)) {
-        chats = saved.chats.filter(c => c && c.id && c.name).map(c => ({
-          id: String(c.id), name: String(c.name), key: String(c.key || ""),
-          url: String(c.url || ""), messages: Array.isArray(c.messages) ? c.messages : []
-        }));
-        activeId = chats.some(c => c.id === saved.activeId) ? saved.activeId : (chats[0]?.id || null);
-      }
-    } catch (err) {
-      console.warn("Не удалось загрузить сохранённые чаты:", err);
-      chats = []; activeId = null;
-    }
-  }
 
   function avatarFor(name) {
     const n = name.toLowerCase();
@@ -368,16 +368,16 @@
       chat.messages.push({who:"ai", text:data.reply || "Сервер вернул пустой ответ.", files:[]});
       saveState();
     } catch (err) {
-      chat.messages.push({who:"ai", text:"Не удалось получить ответ: " + err.message + "\nПроверь, что main.py запущен, а название модели, API-ключ и адрес API указаны правильно.", files:[]});
+      chat.messages.push({who:"ai", text:"Не удалось получить ответ: " + err.message + "\nПроверь адрес API, название модели и ключ.", files:[]});
+      saveState();
     } finally {
-      $("typing").classList.add("hidden"); $("sendBtn").disabled = false; renderMessages();
+      $("typing").classList.add("hidden"); $("sendBtn").disabled = !activeChat(); renderMessages();
     }
   }
   $("sendBtn").onclick = sendMessage;
   $("messageInput").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) {e.preventDefault();sendMessage();} });
   $("messageInput").addEventListener("input", () => { const el=$("messageInput"); el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,130)+"px"; });
   $("clearBtn").onclick = () => { const c=activeChat(); if(c){c.messages=[];saveState();renderMessages();} };
-  loadState();
   selectChat(activeId);
 </script>
 </body>
