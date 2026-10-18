@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#eaf6ff" />
+  <title>Чат с ИИ</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { --blue:#1688e8; --blue2:#dff1ff; --ink:#17324d; --muted:#6e8498; --line:#d9eaf7; --white:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:linear-gradient(180deg,#eaf6ff 0%,#f8fcff 55%,#edf7ff 100%); color:var(--ink); }
+    button,textarea { font:inherit; }
+    .app { width:100%; max-width:none; min-height:100dvh; margin:0; display:flex; flex-direction:column; padding:10px; gap:10px; }
+    body { width:100%; min-width:0; }
+    .model-list { display:flex; overflow-x:auto; gap:10px; padding:2px 2px 8px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:thin; }
+    .model { flex:0 0 180px; scroll-snap-align:start; }
+    .model-list::-webkit-scrollbar { height:5px; }
+    .model-list::-webkit-scrollbar-thumb { background:#b9defa; border-radius:99px; }
+    .models { min-width:0; }
+    .chat { min-width:0; }
+    .messages { max-height:none; flex:1; min-height:260px; }
+    .chat { min-height:calc(100dvh - 205px); }
+    .chat-head { position:sticky; top:0; background:#ffffffed; }
+    .composer-wrap { position:sticky; bottom:0; }
+    header { display:flex; align-items:center; justify-content:space-between; padding:13px 15px; border:1px solid var(--line); background:#ffffffdc; border-radius:20px; box-shadow:0 8px 28px #7ab6e51c; }
+    .brand { display:flex; gap:10px; align-items:center; font-weight:800; letter-spacing:-.3px; }
+    .logo { display:grid; place-items:center; width:38px; height:38px; border-radius:13px; background:linear-gradient(135deg,#36a5ff,#0874d7); color:white; box-shadow:0 5px 12px #1688e833; }
+    .sub { font-size:12px; color:var(--muted); font-weight:500; margin-top:2px; }
+    .pill { border:1px solid #b9defa; color:#0875cf; background:#eef8ff; border-radius:999px; padding:7px 10px; font-size:12px; font-weight:700; }
+    .panel { background:#ffffffed; border:1px solid var(--line); border-radius:22px; box-shadow:0 8px 28px #7ab6e514; overflow:hidden; }
+    .models { padding:15px; }
+    .section-title { font-weight:800; margin:0 0 10px; font-size:15px; }
+    .model-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:9px; }
+    .model { text-align:left; border:1px solid var(--line); background:#f8fcff; border-radius:15px; padding:12px; color:var(--ink); cursor:pointer; transition:.15s; min-height:75px; }
+    .model strong { display:block; font-size:13px; margin-bottom:5px; }
+    .model span { font-size:11px; color:var(--muted); }
+    .model.active { background:var(--blue2); border-color:#65b9f5; box-shadow:inset 0 0 0 1px #65b9f5; }
+    .chat { display:flex; flex-direction:column; flex:1; min-height:350px; }
+    .chat-head { padding:13px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .chat-head strong { font-size:14px; }
+    .chat-head small { display:block; color:var(--muted); font-size:11px; margin-top:3px; }
+    .messages { flex:1; min-height:260px; max-height:55dvh; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth; }
+    .empty { margin:auto; text-align:center; color:var(--muted); max-width:290px; line-height:1.5; font-size:13px; }
+    .empty .bubble-icon { font-size:34px; margin-bottom:8px; }
+    .msg { max-width:88%; padding:11px 13px; border-radius:17px; line-height:1.45; font-size:14px; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .msg.user { align-self:flex-end; background:linear-gradient(135deg,#1688e8,#0874d7); color:#fff; border-bottom-right-radius:5px; }
+    .msg.ai { align-self:flex-start; background:#edf7ff; border:1px solid #d8ecfb; border-bottom-left-radius:5px; }
+    .attachments { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+    .attachment { font-size:11px; padding:5px 8px; background:#ffffff35; border:1px solid #ffffff55; border-radius:9px; }
+    .ai .attachment { background:white; border-color:var(--line); }
+    .composer-wrap { border-top:1px solid var(--line); padding:12px; background:#fbfdff; }
+    .preview { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:8px; }
+    .preview-item { font-size:11px; border:1px solid #cfe6f8; background:#eef8ff; border-radius:10px; padding:7px 9px; display:flex; align-items:center; gap:7px; max-width:100%; }
+    .preview-item button { border:0; background:transparent; color:#6e8498; cursor:pointer; padding:0 2px; }
+    .composer { display:flex; align-items:flex-end; gap:8px; }
+    .tool { flex:0 0 40px; height:40px; border:1px solid var(--line); background:white; border-radius:13px; color:#1787df; font-size:21px; cursor:pointer; }
+    textarea { flex:1; resize:none; border:1px solid var(--line); background:white; border-radius:15px; padding:11px 12px; min-height:42px; max-height:130px; outline:none; color:var(--ink); }
+    textarea:focus { border-color:#72bdf4; box-shadow:0 0 0 3px #1688e812; }
+    .send { flex:0 0 44px; height:42px; border:0; border-radius:14px; color:white; background:linear-gradient(135deg,#269df6,#0874d7); font-size:18px; cursor:pointer; box-shadow:0 5px 12px #1688e82b; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .hint { font-size:10px; color:#8297a9; text-align:center; padding-top:8px; }
+    .typing { color:var(--muted); font-size:12px; padding:0 16px 10px; }
+    .hidden { display:none !important; }
+
+
+
+
+    .workspace { display:flex; flex:1; min-height:calc(100dvh - 90px); gap:12px; }
+    .sidebar { width:280px; flex:0 0 280px; background:#ffffffed; border:1px solid var(--line); border-radius:22px; padding:13px; display:flex; flex-direction:column; min-height:0; }
+    .sidebar-top {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+    .sidebar-title {font-weight:800;font-size:15px}
+    .add-chat {border:0;background:#1688e8;color:#fff;border-radius:12px;width:38px;height:38px;font-size:24px;cursor:pointer;box-shadow:0 5px 12px #1688e82b}
+    .add-chat-label {width:100%;border:1px solid #b9defa;color:#0875cf;background:#eef8ff;border-radius:13px;padding:11px;font-weight:750;cursor:pointer;margin-bottom:10px}
+    .chat-list {display:flex;flex-direction:column;gap:7px;overflow:auto;min-height:0}
+    .chat-entry {display:flex;align-items:center;gap:9px;padding:9px;border:1px solid transparent;border-radius:14px;background:#f7fbff;cursor:pointer;min-width:0}
+    .chat-entry.active {background:#e3f3ff;border-color:#8acbf8}
+    .avatar {width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:13px;background:#e7f3ff;color:#0875cf;font-weight:800;font-size:13px;overflow:hidden}
+    .avatar svg {width:25px;height:25px}
+    .entry-info {min-width:0;flex:1}
+    .entry-name {font-size:13px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .entry-model {font-size:10px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .delete-chat {border:0;background:transparent;color:#92a5b5;font-size:18px;cursor:pointer;padding:4px;border-radius:8px}
+    .delete-chat:hover {background:#ffecec;color:#d34242}
+    .main-chat {flex:1;min-width:0;display:flex;flex-direction:column}
+    .no-chat {margin:auto;text-align:center;color:var(--muted);max-width:340px;padding:25px}
+    .no-chat-icon {font-size:44px;margin-bottom:12px}
+    .modal-backdrop {position:fixed;inset:0;z-index:5000;background:#17324d66;display:flex;align-items:center;justify-content:center;padding:18px}
+    .modal {width:min(100%,440px);background:#fff;border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 25px 80px #17324d33}
+    .modal h2 {font-size:20px;margin:0 0 6px}
+    .modal p {font-size:12px;line-height:1.5;color:var(--muted);margin:0 0 17px}
+    .field {display:flex;flex-direction:column;gap:6px;margin-bottom:12px;text-align:left}
+    .field label {font-size:12px;font-weight:750;color:#36516b}
+    .field input {height:44px;border:1px solid #cfe4f5;border-radius:12px;padding:0 12px;outline:none;color:var(--ink);background:#f8fcff}
+    .field input:focus {border-color:#1688e8;box-shadow:0 0 0 3px #1688e812}
+    .modal-actions {display:flex;gap:9px;margin-top:16px}
+    .modal-actions button {flex:1;height:44px;border-radius:12px;font-weight:750;cursor:pointer}
+    .cancel-btn {border:1px solid var(--line);background:#fff;color:var(--ink)}
+    .save-btn {border:0;background:#1688e8;color:#fff}
+    .modal-error {font-size:12px;color:#d34242;min-height:16px}
+    .hidden {display:none!important}
+    @media(max-width:680px) {
+      .workspace {gap:8px;min-height:calc(100dvh - 76px)}
+      .sidebar {width:74px;flex-basis:74px;padding:8px;border-radius:17px}
+      .sidebar-title,.add-chat-label,.entry-info,.delete-chat {display:none}
+      .sidebar-top {justify-content:center}
+      .add-chat {width:42px;height:42px}
+      .chat-list {align-items:center}
+      .chat-entry {width:48px;height:48px;padding:4px;justify-content:center}
+      .avatar {width:38px;height:38px}
+      .app {padding:6px;gap:7px}
+      .main-chat .chat {min-height:calc(100dvh - 100px)}
+    }
+
+    @media(max-width:480px) {
+      .app{padding:6px;gap:7px}
+      .models{padding:10px}
+      .model{flex-basis:155px; min-height:68px}
+      .messages{padding:10px}
+      .msg{max-width:94%}
+      header{padding:10px}
+      .chat{min-height:calc(100dvh - 190px)}
+      .chat-head{padding:11px 12px}
+      .composer-wrap{padding:9px}
+    }
+  </style>
+</head>
+<body>
+
+
+
+<div class="app">
+  <header>
+    <div class="brand"><div class="logo">✦</div><div><span id="appTitle">Мои ИИ-чаты</span><div class="sub">Твои модели и переписки</div></div></div>
+    <span class="pill">● Online</span>
+  </header>
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="sidebar-top"><div class="sidebar-title">Мои чаты</div><button class="add-chat" id="plusBtn" aria-label="Добавить чат">＋</button></div>
+      <button class="add-chat-label" id="addChatBtn">＋ Добавить чат с ИИ</button>
+      <div class="chat-list" id="chatList"></div>
+    </aside>
+    <section class="main-chat">
+      <div class="panel chat" id="chatPanel">
+        <div class="chat-head">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0">
+            <div class="avatar" id="activeAvatar">✦</div>
+            <div style="min-width:0"><strong id="chatTitle">Выбери чат</strong><small id="chatSubtitle">Добавь модель ИИ, чтобы начать</small></div>
+          </div>
+          <button class="pill" id="clearBtn" type="button">Очистить</button>
+        </div>
+        <div class="messages" id="messages">
+          <div class="no-chat" id="emptyState"><div class="no-chat-icon">💬</div><strong>Пока нет чатов</strong><br>Нажми «Добавить чат с ИИ», чтобы подключить свою модель.</div>
+        </div>
+        <div class="typing hidden" id="typing">ИИ печатает…</div>
+        <div class="composer-wrap">
+          <div class="preview" id="preview"></div>
+          <div class="composer">
+            <button class="tool" id="attachBtn" title="Прикрепить файл" aria-label="Прикрепить файл">＋</button>
+            <input id="fileInput" type="file" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" class="hidden" />
+            <textarea id="messageInput" rows="1" placeholder="Напиши сообщение…" disabled></textarea>
+            <button class="send" id="sendBtn" title="Отправить" aria-label="Отправить" disabled>➤</button>
+          </div>
+          <div class="hint">Ключи хранятся в этом браузере. Не используй общий или чужой компьютер.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="addModal">
+  <form class="modal" id="addForm">
+    <h2>Добавить чат с ИИ</h2>
+    <p>Введи точное имя модели из каталога провайдера, API-ключ и адрес API. Имя модели должно поддерживаться твоим API-аккаунтом.</p>
+    <div class="field"><label for="modelName">Название модели</label><input id="modelName" placeholder="Например, claude-модель" autocomplete="off" required /></div>
+    <div class="field"><label for="apiKey">API-ключ</label><input id="apiKey" type="password" placeholder="Вставь API-ключ" autocomplete="off" required /></div>
+    <div class="field"><label for="apiUrl">Ссылка API</label><input id="apiUrl" type="url" value="https://darkapi.shop" required /></div>
+    <div class="modal-error" id="modalError"></div>
+    <div class="modal-actions"><button class="cancel-btn" id="cancelAdd" type="button">Отмена</button><button class="save-btn" type="submit">Добавить</button></div>
+  </form>
+</div>
+<script>
+  const tg = window.Telegram?.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  const $ = id => document.getElementById(id);
+  let chats = [];
+  let activeId = null;
+  let pendingFiles = [];
+  const modelInput = $("modelName"), apiKeyInput = $("apiKey"), apiUrlInput = $("apiUrl");
+
+  function avatarFor(name) {
+    const n = name.toLowerCase();
+    if (n.includes("claude")) return {label:"✳", color:"#f6e7dc", ink:"#b75b2b", brand:"Claude"};
+    if (n.includes("deepseek")) return {label:"🐋", color:"#e1efff", ink:"#1269c7", brand:"DeepSeek"};
+    if (n.includes("gemini")) return {label:"✦", color:"#e8e5ff", ink:"#6552cf", brand:"Gemini"};
+    if (n.includes("grok")) return {label:"𝕏", color:"#e8edf2", ink:"#202b36", brand:"Grok"};
+    if (n.includes("gpt") || n.includes("openai") || n.includes("chatgpt")) return {label:"◎", color:"#dff7ee", ink:"#087f68", brand:"ChatGPT"};
+    return {label:name.slice(0,2).toUpperCase(), color:"#e7f3ff", ink:"#0875cf", brand:name};
+  }
+  function avatarNode(name) {
+    const a = avatarFor(name), node = document.createElement("div");
+    node.className = "avatar"; node.textContent = a.label;
+    node.style.background = a.color; node.style.color = a.ink; node.title = a.brand;
+    return node;
+  }
+  function activeChat() { return chats.find(c => c.id === activeId) || null; }
+  function renderList() {
+    const list = $("chatList"); list.replaceChildren();
+    chats.forEach(chat => {
+      const row = document.createElement("div");
+      row.className = "chat-entry" + (chat.id === activeId ? " active" : "");
+      row.title = chat.name;
+      row.append(avatarNode(chat.name));
+      const info = document.createElement("div"); info.className = "entry-info";
+      const name = document.createElement("div"); name.className = "entry-name"; name.textContent = chat.name;
+      const model = document.createElement("div"); model.className = "entry-model"; model.textContent = avatarFor(chat.name).brand;
+      info.append(name, model);
+      const del = document.createElement("button"); del.className = "delete-chat"; del.type = "button"; del.textContent = "×"; del.title = "Удалить чат";
+      del.onclick = e => { e.stopPropagation(); deleteChat(chat.id); };
+      row.append(info, del);
+      row.onclick = () => selectChat(chat.id);
+      list.append(row);
+    });
+  }
+  function renderMessages() {
+    const chat = activeChat(), area = $("messages"); area.replaceChildren();
+    if (!chat) {
+      const empty = document.createElement("div"); empty.className = "no-chat";
+      empty.innerHTML = '<div class="no-chat-icon">💬</div><strong>Пока нет чатов</strong><br>Нажми «Добавить чат с ИИ», чтобы подключить свою модель.';
+      area.append(empty); return;
+    }
+    if (!chat.messages.length) {
+      const empty = document.createElement("div"); empty.className = "empty";
+      empty.innerHTML = '<div class="bubble-icon">💬</div><strong>Начни общение</strong><br>Напиши сообщение или прикрепи фото/файл.';
+      area.append(empty); return;
+    }
+    chat.messages.forEach(m => {
+      const bubble = document.createElement("div"); bubble.className = "msg " + m.who;
+      if (m.text) { const body = document.createElement("div"); body.textContent = m.text; bubble.append(body); }
+      if (m.files?.length) {
+        const at = document.createElement("div"); at.className = "attachments";
+        m.files.forEach(f => { const tag = document.createElement("div"); tag.className = "attachment"; tag.textContent = (f.type?.startsWith("image/") ? "🖼️ " : "📎 ") + f.name; at.append(tag); });
+        bubble.append(at);
+      }
+      area.append(bubble);
+    });
+    area.scrollTop = area.scrollHeight;
+  }
+  function selectChat(id) {
+    activeId = id; const chat = activeChat();
+    $("appTitle").textContent = chat ? chat.name : "Мои ИИ-чаты";
+    $("chatTitle").textContent = chat ? chat.name : "Выбери чат";
+    $("chatSubtitle").textContent = chat ? "Модель ИИ подключена" : "Добавь модель ИИ, чтобы начать";
+    $("activeAvatar").replaceWith(avatarNode(chat ? chat.name : "AI"));
+    $("activeAvatar").id = "activeAvatar";
+    $("messageInput").disabled = !chat; $("sendBtn").disabled = !chat; $("attachBtn").disabled = !chat;
+    renderList(); renderMessages();
+  }
+  function deleteChat(id) {
+    const chat = chats.find(c => c.id === id);
+    if (!chat || !confirm("Удалить чат «" + chat.name + "»?")) return;
+    chats = chats.filter(c => c.id !== id);
+    if (activeId === id) activeId = chats[0]?.id || null;
+    selectChat(activeId);
+  }
+  function openModal() { $("addModal").classList.remove("hidden"); $("modalError").textContent = ""; modelInput.focus(); }
+  function closeModal() { $("addModal").classList.add("hidden"); $("addForm").reset(); apiUrlInput.value = "https://darkapi.shop"; }
+  $("plusBtn").onclick = openModal;
+  $("addChatBtn").onclick = openModal;
+  $("cancelAdd").onclick = closeModal;
+  $("addModal").addEventListener("click", e => { if (e.target === $("addModal")) closeModal(); });
+  $("addForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = modelInput.value.trim(), key = apiKeyInput.value.trim(), url = apiUrlInput.value.trim().replace(/\/+$/, "");
+    if (!name || !key || !url) { $("modalError").textContent = "Заполни все поля."; return; }
+    if (!/^https?:\/\//i.test(url)) { $("modalError").textContent = "Ссылка должна начинаться с https:// или http://."; return; }
+    const id = (Date.now().toString(36) + Math.random().toString(36).slice(2,7));
+    chats.push({id, name, key, url, messages:[]});
+    closeModal(); selectChat(id);
+  });
+
+  $("attachBtn").onclick = () => $("fileInput").click();
+  $("fileInput").addEventListener("change", () => {
+    const incoming = Array.from($("fileInput").files || []);
+    pendingFiles.push(...incoming.slice(0, Math.max(0,5-pendingFiles.length)));
+    $("fileInput").value = ""; renderPreview();
+  });
+  function renderPreview() {
+    $("preview").replaceChildren();
+    pendingFiles.forEach((file, i) => {
+      const item = document.createElement("div"); item.className = "preview-item";
+      const label = document.createElement("span"); label.textContent = (file.type.startsWith("image/") ? "🖼️ " : "📎 ") + file.name;
+      const remove = document.createElement("button"); remove.textContent = "×"; remove.onclick = () => { pendingFiles.splice(i,1); renderPreview(); };
+      item.append(label, remove); $("preview").append(item);
+    });
+  }
+  async function sendMessage() {
+    const chat = activeChat(), text = $("messageInput").value.trim();
+    if (!chat || (!text && !pendingFiles.length) || $("sendBtn").disabled) return;
+    const files = pendingFiles.slice();
+    chat.messages.push({who:"user", text:text || "Посмотри прикреплённые файлы.", files:files.map(f=>({name:f.name,type:f.type}))});
+    $("messageInput").value = ""; $("messageInput").style.height = "auto"; pendingFiles=[]; renderPreview(); renderMessages();
+    $("sendBtn").disabled = true; $("typing").classList.remove("hidden");
+    const form = new FormData(); form.append("message", text); form.append("model", chat.name); form.append("api_key", chat.key); form.append("api_url", chat.url);
+    files.forEach(f => form.append("files", f, f.name));
+    try {
+      const response = await fetch("/api/chat", {method:"POST", body:form});
+      const data = await response.json().catch(()=>({}));
+      if (!response.ok) throw new Error(data.error || "Ошибка сервера");
+      chat.messages.push({who:"ai", text:data.reply || "Сервер вернул пустой ответ.", files:[]});
+    } catch (err) {
+      chat.messages.push({who:"ai", text:"Не удалось получить ответ: " + err.message + "\nПроверь настройки сервера и совместимость API.", files:[]});
+    } finally {
+      $("typing").classList.add("hidden"); $("sendBtn").disabled = false; renderMessages();
+    }
+  }
+  $("sendBtn").onclick = sendMessage;
+  $("messageInput").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) {e.preventDefault();sendMessage();} });
+  $("messageInput").addEventListener("input", () => { const el=$("messageInput"); el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,130)+"px"; });
+  $("clearBtn").onclick = () => { const c=activeChat(); if(c){c.messages=[];renderMessages();} };
+  selectChat(null);
+</script>
+</body>
+</html>
