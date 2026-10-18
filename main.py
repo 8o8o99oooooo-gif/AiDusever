@@ -79,7 +79,7 @@ def chat():
     try:
         payload = {"model": model, "messages": [
             {"role": "system", "content": "Ты полезный ИИ-помощник. Отвечай на языке пользователя."},
-            {"role": "user", "content": "\\n".join(parts)}
+            {"role": "user", "content": "\n".join(parts)}
         ]}
         response = None
         for endpoint in endpoints:
@@ -94,7 +94,7 @@ def chat():
         if response is None:
             return jsonify({"error": "Не удалось создать запрос к API."}), 502
         if not response.ok:
-            detail = response.text[:500].replace("\\n", " ")
+            detail = response.text[:500].replace("\n", " ")
             return jsonify({"error": f"API вернул HTTP {response.status_code}. {detail}"}), 502
         try:
             data = response.json()
