@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -310,7 +311,7 @@
       if (!response.ok) throw new Error(data.error || "Ошибка сервера");
       chat.messages.push({who:"ai", text:data.reply || "Сервер вернул пустой ответ.", files:[]});
     } catch (err) {
-      chat.messages.push({who:"ai", text:"Не удалось получить ответ: " + err.message + "\nПроверь настройки сервера и совместимость API.", files:[]});
+      chat.messages.push({who:"ai", text:"Не удалось получить ответ: " + err.message + "\nПроверь, что main.py запущен, а название модели, API-ключ и адрес API указаны правильно.", files:[]});
     } finally {
       $("typing").classList.add("hidden"); $("sendBtn").disabled = false; renderMessages();
     }
