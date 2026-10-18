@@ -97,7 +97,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
       <div class="prev" id="prev"></div>
       <div class="box">
         <button class="ico" id="attach" aria-label="Файл">📎</button>
-        <input id="file" type="file" multiple class="hidden" accept="image/*,.pdf,.txt,.md,.csv,.json,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip">
+        <input id="file" type="file" multiple class="hidden">
         <textarea id="inp" rows="1" placeholder="Напиши сообщение…"></textarea>
         <button class="send" id="send" aria-label="Отправить">➤</button>
       </div>
@@ -122,7 +122,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
 // а main.py лежит на хостинге — впиши сюда его адрес, например "https://my-app.onrender.com"
 const BACKEND = "";
 // Адрес Cloudflare Worker (см. worker.js), например "https://ai-proxy.твой-ник.workers.dev"
-const PROXY = "https://ai-proxy.8o8o99oooooo.workers.dev";
+const PROXY = "";
 const DEFAULT_URL = "https://darkapi.shop";
 const KEY = "telegram_ai_chat_manager_v2";
 const tg = window.Telegram?.WebApp;
@@ -240,10 +240,20 @@ $("form").addEventListener("submit", e => {
 });
 
 $("attach").onclick = () => $("file").click();
-$("file").addEventListener("change", () => {
-  pending.push(...Array.from($("file").files).slice(0, Math.max(0, 5 - pending.length)));
-  $("file").value = ""; renderPrev();
-});
+function addFiles(list) {
+  if (!active()) return;
+  let skipped = 0;
+  for (const f of list) {
+    if (pending.length >= 5 || f.size > 15 * 1024 * 1024) { skipped++; continue; }
+    pending.push(f);
+  }
+  if (skipped) alert("Часть файлов не добавлена: максимум 5 файлов по 15 МБ.");
+  renderPrev();
+}
+$("file").addEventListener("change", () => { addFiles(Array.from($("file").files)); $("file").value = ""; });
+addEventListener("dragover", e => e.preventDefault());
+addEventListener("drop", e => { e.preventDefault(); addFiles(Array.from(e.dataTransfer?.files || [])); });
+addEventListener("paste", e => { const fs = Array.from(e.clipboardData?.files || []); if (fs.length) { e.preventDefault(); addFiles(fs); } });
 function renderPrev() {
   $("prev").replaceChildren();
   pending.forEach((f, i) => {
@@ -256,37 +266,106 @@ function renderPrev() {
 
 // ---------- отправка ----------
 const toDataURL = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f); });
-const TEXT_EXT = /\.(txt|md|csv|json)$/i;
+const TEXT_RE = /\.(txt|md|csv|tsv|json|log|xml|html?|css|js|jsx|ts|tsx|py|java|c|h|cpp|cs|go|rs|php|rb|sql|ya?ml|ini|toml|sh|bat|env)$/i;
+const LIBS = {
+  pdf: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+  pdfWorker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
+  docx: "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js",
+  xlsx: "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+  zip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+};
+const loaded = {};
+const loadJS = src => loaded[src] || (loaded[src] = new Promise((ok, no) => {
+  const s = document.createElement("script"); s.src = src; s.onload = ok;
+  s.onerror = () => { delete loaded[src]; no(new Error("не загрузилась библиотека (нет интернета?)")); };
+  document.head.append(s);
+}));
+const MAX_PER_FILE = 20000, MAX_TOTAL = 60000;
+
+async function extract(f) {
+  const n = f.name.toLowerCase();
+  if (TEXT_RE.test(n)) return await f.text();
+  const buf = await f.arrayBuffer();
+  if (n.endsWith(".pdf")) {
+    await loadJS(LIBS.pdf);
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      const code = await (await fetch(LIBS.pdfWorker)).text();
+      pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([code], {type: "text/javascript"}));
+    }
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    let out = "";
+    for (let i = 1; i <= Math.min(pdf.numPages, 40) && out.length < MAX_PER_FILE; i++) {
+      const tc = await (await pdf.getPage(i)).getTextContent();
+      out += "\n--- стр. " + i + " ---\n" + tc.items.map(x => x.str).join(" ");
+    }
+    return out.trim() || "(в PDF нет текстового слоя — возможно, это скан)";
+  }
+  if (n.endsWith(".docx")) { await loadJS(LIBS.docx); return (await mammoth.extractRawText({arrayBuffer: buf})).value; }
+  if (/\.xlsx?$/.test(n)) {
+    await loadJS(LIBS.xlsx);
+    const wb = XLSX.read(buf, {type: "array"});
+    return wb.SheetNames.map(s => "## Лист: " + s + "\n" + XLSX.utils.sheet_to_csv(wb.Sheets[s])).join("\n\n");
+  }
+  if (n.endsWith(".pptx")) {
+    await loadJS(LIBS.zip);
+    const z = await JSZip.loadAsync(buf);
+    const slides = Object.keys(z.files).filter(k => /^ppt\/slides\/slide\d+\.xml$/.test(k)).sort((a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/)));
+    let out = "";
+    for (const [i, k] of slides.entries()) {
+      const xml = await z.files[k].async("string");
+      out += "\n--- слайд " + (i + 1) + " ---\n" + [...xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m => m[1]).join(" ");
+    }
+    return out.trim();
+  }
+  if (n.endsWith(".zip")) {
+    await loadJS(LIBS.zip);
+    const z = await JSZip.loadAsync(buf);
+    const names = Object.keys(z.files).filter(k => !z.files[k].dir);
+    let out = "Файлы в архиве:\n" + names.slice(0, 200).join("\n");
+    for (const k of names.filter(k => TEXT_RE.test(k)).slice(0, 15)) out += "\n\n[" + k + "]\n" + (await z.files[k].async("string")).slice(0, 4000);
+    return out;
+  }
+  throw new Error("формат не поддерживается (старые .doc/.ppt сохрани как .docx/.pptx)");
+}
+
+async function prepare(files) {
+  const images = []; let extra = "";
+  for (const f of files) {
+    if (f.type.startsWith("image/")) { images.push(f); continue; }
+    let part;
+    try { part = (await extract(f)).slice(0, MAX_PER_FILE); }
+    catch (e) { part = "(не удалось прочитать: " + e.message + ")"; }
+    extra += (extra ? "\n\n" : "") + "[Файл " + f.name + "]\n" + part;
+    if (extra.length > MAX_TOTAL) { extra = extra.slice(0, MAX_TOTAL) + "\n…(обрезано)"; break; }
+  }
+  return {extra, images};
+}
 
 function endpoints(u) {
   if (u.endsWith("/chat/completions")) return [u];
   if (u.endsWith("/v1")) return [u + "/chat/completions"];
   return [u + "/v1/chat/completions", u + "/chat/completions"];
 }
-function history(c) {  // последние сообщения как контекст (без текущего)
-  return c.messages.filter(m => !m.err && m.text).slice(-21, -1).map(m => ({role: m.who === "ai" ? "assistant" : "user", content: m.text}));
+function history(c) {  // последние сообщения как контекст (без текущего), включая текст вложений
+  return c.messages.filter(m => !m.err && m.text).slice(-21, -1).map(m => ({role: m.who === "ai" ? "assistant" : "user", content: m.text + (m.ctx ? "\n\n" + m.ctx : "")}));
 }
+const fullText = (text, prep) => [text, prep.extra].filter(Boolean).join("\n\n") || "Посмотри вложения.";
 
-async function viaBackend(c, text, files) {
+async function viaBackend(c, text, prep) {
   const f = new FormData();
-  f.append("message", text); f.append("model", c.name); f.append("api_key", c.key); f.append("api_url", c.url);
+  f.append("message", fullText(text, prep)); f.append("model", c.name); f.append("api_key", c.key); f.append("api_url", c.url);
   f.append("history", JSON.stringify(history(c)));
-  files.forEach(x => f.append("files", x, x.name));
+  prep.images.forEach(x => f.append("files", x, x.name));
   const r = await fetch(BACKEND + "/api/chat", {method: "POST", body: f});
   const d = await r.json().catch(() => ({}));
   if (!r.ok) { const e = new Error(d.error || "Ошибка сервера (" + r.status + ")"); e.status = r.status; throw e; }
   return d.reply || "Пустой ответ.";
 }
 
-async function direct(c, text, files) {  // прямой запрос из браузера (работает на GitHub Pages)
-  const content = [], extra = [];
-  for (const f of files) {
-    if (f.type.startsWith("image/")) content.push({type: "image_url", image_url: {url: await toDataURL(f)}});
-    else if (TEXT_EXT.test(f.name)) extra.push("[Файл " + f.name + "]\n" + (await f.text()).slice(0, 12000));
-    else extra.push("[Прикреплён файл " + f.name + ": чтение этого формата не поддерживается]");
-  }
-  content.unshift({type: "text", text: [text, ...extra].filter(Boolean).join("\n\n") || "Посмотри вложения."});
-  const body = {model: c.name, messages: [{role: "system", content: "Ты полезный ИИ-помощник. Отвечай на языке пользователя."}, ...history(c), {role: "user", content: content.length === 1 ? content[0].text : content}]};
+async function direct(c, text, prep) {  // прямой запрос из браузера / через Cloudflare Worker
+  const parts = [{type: "text", text: fullText(text, prep)}];
+  for (const im of prep.images) parts.push({type: "image_url", image_url: {url: await toDataURL(im)}});
+  const body = {model: c.name, messages: [{role: "system", content: "Ты полезный ИИ-помощник. Отвечай на языке пользователя."}, ...history(c), {role: "user", content: parts.length === 1 ? parts[0].text : parts}]};
   let last = "";
   for (const ep of endpoints(c.url)) {
     let r;
@@ -294,8 +373,7 @@ async function direct(c, text, files) {  // прямой запрос из бр�
       r = PROXY
         ? await fetch(PROXY, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({url: ep, key: c.key, body})})
         : await fetch(ep, {method: "POST", headers: {"Content-Type": "application/json", Authorization: "Bearer " + c.key}, body: JSON.stringify(body)});
-    }
-    catch (e) { throw new Error(PROXY ? "Воркер " + PROXY + " недоступен или отклонил запрос. Открой этот адрес в браузере (должно быть POST only) и проверь ALLOWED_ORIGIN = " + location.origin : "PROXY в index.html пустой — впиши адрес Cloudflare Worker."); }
+    } catch (e) { throw new Error(PROXY ? "Воркер " + PROXY + " недоступен или отклонил запрос. Проверь ALLOWED_ORIGIN = " + location.origin : "PROXY в index.html пустой — впиши адрес Cloudflare Worker."); }
     if (r.status === 404 || r.status === 405) { last = "HTTP " + r.status; continue; }
     const t = await r.text();
     if (!r.ok) throw new Error("API вернул HTTP " + r.status + ": " + t.slice(0, 300));
@@ -307,23 +385,26 @@ async function direct(c, text, files) {  // прямой запрос из бр�
   throw new Error("Адрес API не найден (" + last + ")");
 }
 
-async function ask(c, text, files) {
+async function ask(c, text, prep) {
   const onPages = /github\.io$/i.test(location.hostname) || location.protocol === "file:";
   if (BACKEND || !onPages) {
-    try { return await viaBackend(c, text, files); }
+    try { return await viaBackend(c, text, prep); }
     catch (e) { if (!(e.status === 404 || e.status === 405 || e instanceof TypeError)) throw e; }  // сервера нет → напрямую
   }
-  return direct(c, text, files);
+  return direct(c, text, prep);
 }
 
 async function send() {
   const c = active(), text = $("inp").value.trim();
   if (!c || busy || (!text && !pending.length)) return;
   const files = pending.slice();
-  c.messages.push({who: "user", text: text || "Посмотри вложения.", files: files.map(f => ({name: f.name, type: f.type}))});
-  save(); $("inp").value = ""; $("inp").style.height = "auto"; pending = []; renderPrev();
-  busy = true; updateButtons(); renderMsgs(); renderList(); $("typing").classList.remove("hidden");
-  try { c.messages.push({who: "ai", text: await ask(c, text, files)}); }
+  busy = true; updateButtons();
+  $("inp").value = ""; $("inp").style.height = "auto"; pending = []; renderPrev();
+  $("typing").classList.remove("hidden");
+  const prep = await prepare(files);
+  c.messages.push({who: "user", text: text || "Посмотри вложения.", ctx: prep.extra.slice(0, MAX_PER_FILE), files: files.map(f => ({name: f.name, type: f.type}))});
+  save(); renderMsgs(); renderList();
+  try { c.messages.push({who: "ai", text: await ask(c, text, prep)}); }
   catch (e) { c.messages.push({who: "ai", err: true, text: "Не удалось получить ответ: " + e.message + "\nПроверь адрес API, название модели и ключ."}); }
   busy = false; save(); $("typing").classList.add("hidden"); updateButtons(); renderMsgs(); renderList();
 }
