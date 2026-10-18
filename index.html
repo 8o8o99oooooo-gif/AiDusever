@@ -1,79 +1,92 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171a23">
 <title>ИИ-чаты</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-:root{--bg:#0f1117;--p1:#171a23;--p2:#1f2330;--line:#2b3040;--tx:#eceef4;--mu:#8b93a7;--ac:#ff8a4c;--ac2:#ffb36b;--ai:#1f2330;--me:linear-gradient(135deg,#ff8a4c,#f0623a);--r:18px}
-@media(prefers-color-scheme:light){:root{--bg:#f4f1ec;--p1:#fffdf9;--p2:#f0ebe3;--line:#e2dacd;--tx:#26221c;--mu:#7d7466;--ai:#fff}}
+:root {
+  color-scheme: dark;
+  --bg:#0f1117; --p1:#171a23; --p2:#1f2330; --line:#2b3040;
+  --tx:#eceef4; --mu:#8b93a7; --ac:#ff8a4c;
+  --ai:#1f2330; --me:linear-gradient(135deg,#ff8a4c,#f0623a);
+}
+@media(prefers-color-scheme:light) {
+  :root {
+    color-scheme:light;
+    --bg:#f4f1ec; --p1:#fffdf9; --p2:#f0ebe3; --line:#e2dacd;
+    --tx:#26221c; --mu:#7d7466; --ai:#fff;
+  }
+}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
-body{font:15px/1.5 ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);overflow:hidden}
-button,textarea,input{font:inherit;color:inherit}
+body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none}
+button:disabled{opacity:.45;cursor:not-allowed}
 .hidden{display:none!important}
 .app{display:flex;height:100dvh;padding-top:env(safe-area-inset-top)}
 .side{width:300px;flex:none;background:var(--p1);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;gap:12px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;padding:0 6px}
-.brand i{width:34px;height:34px;border-radius:11px;background:var(--me);display:grid;place-items:center;font-style:normal;color:#fff}
-.new{background:var(--me);color:#fff;border-radius:14px;padding:12px;font-weight:700}
-.list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px}
-.row{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;cursor:pointer;border:1px solid transparent}
-.row:hover{background:var(--p2)}
-.row.on{background:var(--p2);border-color:var(--ac)}
-.av{width:38px;height:38px;flex:none;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:14px}
+.brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800;padding:0 6px}
+.brand i{width:34px;height:34px;border-radius:11px;background:var(--me);display:grid;place-items:center;color:#fff;font-style:normal}
+.new{padding:12px;border-radius:14px;background:var(--me);color:#fff;font-weight:700}
+.search,.field input{height:44px;width:100%;border:1px solid var(--line);border-radius:13px;background:var(--p2);padding:0 12px;outline:0}
+.search:focus,.field input:focus{border-color:var(--ac)}
+.list{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.row{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid transparent;border-radius:14px;cursor:pointer}
+.row:hover,.row.on{background:var(--p2)}
+.row.on{border-color:var(--ac)}
+.av{width:38px;height:38px;flex:none;border-radius:12px;display:grid;place-items:center;font-weight:800}
 .inf{flex:1;min-width:0}
-.inf b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inf b{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .inf small{color:var(--mu);font-size:12px}
-.x{color:var(--mu);font-size:20px;padding:2px 8px;border-radius:8px}
+.x{color:var(--mu);font-size:20px;padding:2px 8px}
 .x:hover{color:#ff5d5d}
-.main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
 .top{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--p1)}
 .top .inf b{font-size:16px}
-.ico{width:38px;height:38px;border-radius:12px;background:var(--p2);font-size:18px;flex:none}
+.ico{width:40px;height:40px;flex:none;border-radius:12px;background:var(--p2);font-size:18px}
 .menu{display:none}
-.msgs{flex:1;overflow:auto;padding:18px 14px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth}
+.msgs{flex:1;min-height:0;overflow:auto;padding:18px 14px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
 .empty{margin:auto;text-align:center;color:var(--mu);max-width:300px}
-.empty big{display:block;font-size:46px;margin-bottom:8px}
-.m{max-width:min(720px,88%);padding:11px 14px;border-radius:var(--r);overflow-wrap:anywhere;white-space:pre-wrap;position:relative}
-.m.user{align-self:flex-end;background:var(--me);color:#fff;border-bottom-right-radius:5px}
+.empty big{display:block;font-size:46px}
+.m{position:relative;max-width:min(720px,90%);padding:11px 14px;border-radius:18px;overflow-wrap:anywhere;white-space:pre-wrap}
+.m.user{align-self:flex-end;color:#fff;background:var(--me);border-bottom-right-radius:5px}
 .m.ai{align-self:flex-start;background:var(--ai);border:1px solid var(--line);border-bottom-left-radius:5px}
 .m.err{border-color:#ff5d5d;color:#ff8b8b}
-.m pre{background:#0b0d12;color:#e6e8ee;padding:12px;border-radius:12px;overflow:auto;white-space:pre;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;margin:8px 0}
-.m code{font:13px ui-monospace,Menlo,Consolas,monospace;background:#8883;padding:1px 5px;border-radius:6px}
-.m pre code{background:none;padding:0}
-.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.tag{font-size:12px;padding:3px 8px;border-radius:8px;background:#fff3;border:1px solid #fff3}
-.cp{position:absolute;right:6px;bottom:-12px;font-size:11px;background:var(--p2);border:1px solid var(--line);border-radius:8px;padding:1px 7px;color:var(--mu)}
-.typing{padding:0 18px 8px;color:var(--mu);font-size:13px}
-.typing b{display:inline-block;animation:b 1s infinite}.typing b:nth-child(3){animation-delay:.15s}.typing b:nth-child(4){animation-delay:.3s}
-@keyframes b{50%{opacity:.2;transform:translateY(-2px)}}
-.comp{padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--p1);border-top:1px solid var(--line)}
+.m pre{overflow:auto;background:#0b0d12;color:#eee;padding:12px;border-radius:10px;white-space:pre}
+.m code{font:13px ui-monospace,monospace;background:#8883;padding:2px 4px;border-radius:5px}
+.m pre code{background:none}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.tag{font-size:12px;padding:3px 8px;border-radius:8px;background:#fff2}
+.copy{display:block;margin-top:8px;color:var(--mu);font-size:11px}
+.typing{padding:0 18px 8px;color:var(--mu)}
+.comp{padding:10px 12px max(10px,env(safe-area-inset-bottom));background:var(--p1);border-top:1px solid var(--line)}
 .prev{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.pv{font-size:12px;background:var(--p2);border:1px solid var(--line);border-radius:10px;padding:5px 9px;display:flex;gap:6px}
-.box{display:flex;align-items:flex-end;gap:8px;background:var(--p2);border:1px solid var(--line);border-radius:20px;padding:6px}
+.pv{display:flex;align-items:center;gap:6px;max-width:100%;padding:5px 9px;border:1px solid var(--line);border-radius:10px;background:var(--p2);font-size:12px}
+.pv span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.box{display:flex;align-items:flex-end;gap:7px;padding:6px;border:1px solid var(--line);border-radius:20px;background:var(--p2)}
 .box:focus-within{border-color:var(--ac)}
-textarea{flex:1;resize:none;background:none;border:0;outline:0;padding:9px 6px;max-height:140px;min-height:40px;font-size:16px}
-.box .ico{background:none}
-.send{width:40px;height:40px;border-radius:14px;background:var(--me);color:#fff;font-size:18px;flex:none}
-button:disabled{opacity:.4;cursor:not-allowed}
-.modal{position:fixed;inset:0;background:#000a;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
-.card{width:min(100%,430px);background:var(--p1);border:1px solid var(--line);border-radius:24px;padding:22px}
-.card h2{margin:0 0 4px}.card p{margin:0 0 14px;color:var(--mu);font-size:13px}
-.f{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
-.f label{font-size:12px;font-weight:700;color:var(--mu)}
-.f input{height:46px;border-radius:12px;border:1px solid var(--line);background:var(--p2);padding:0 12px;outline:0;font-size:16px}
-.f input:focus{border-color:var(--ac)}
-.er{color:#ff6b6b;font-size:13px;min-height:18px}
-.acts{display:flex;gap:8px;margin-top:8px}.acts button{flex:1;height:46px;border-radius:13px;font-weight:700;background:var(--p2)}
-.acts .ok{background:var(--me);color:#fff}
+textarea{flex:1;min-width:0;min-height:40px;max-height:140px;resize:none;border:0;outline:0;background:none;padding:9px 6px;font-size:16px}
+.send{width:40px;height:40px;border-radius:14px;background:var(--me);color:white;font-size:18px}
+.modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:#000a}
+.card{width:min(100%,430px);max-height:90dvh;overflow:auto;padding:22px;border:1px solid var(--line);border-radius:24px;background:var(--p1)}
+.card h2{margin:0 0 5px}
+.card p{margin:0 0 15px;color:var(--mu);font-size:13px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:12px;color:var(--mu);font-weight:700}
+.field input{font-size:16px}
+.error{min-height:18px;color:#ff6b6b;font-size:13px}
+.actions{display:flex;gap:8px;margin-top:8px}
+.actions button{flex:1;height:46px;border-radius:13px;background:var(--p2);font-weight:700}
+.actions .ok{background:var(--me);color:white}
 @media(max-width:760px){
-.side{position:fixed;z-index:40;inset:0 auto 0 0;width:min(84%,320px);transform:translateX(-100%);transition:.22s;padding-top:calc(16px + env(safe-area-inset-top))}
-.side.open{transform:none;box-shadow:0 0 0 100vmax #0008}
-.menu{display:block}
-.m{max-width:92%}
+ .side{position:fixed;z-index:40;inset:0 auto 0 0;width:min(84%,320px);transform:translateX(-100%);transition:transform .2s;padding-top:max(16px,env(safe-area-inset-top))}
+ .side.open{transform:translateX(0);box-shadow:0 0 0 100vmax #0008}
+ .menu{display:block}
+ .m{max-width:94%}
 }
 </style>
 </head>
@@ -81,339 +94,651 @@ button:disabled{opacity:.4;cursor:not-allowed}
 <div class="app">
   <aside class="side" id="side">
     <div class="brand"><i>✦</i>ИИ-чаты</div>
-    <button class="new" id="addBtn">＋ Новый чат</button>
+    <button class="new" id="addBtn" type="button">＋ Новый чат</button>
+    <input class="search" id="search" type="search" placeholder="Поиск по чатам…" aria-label="Поиск по чатам">
     <div class="list" id="list"></div>
   </aside>
+
   <main class="main">
-    <div class="top">
-      <button class="ico menu" id="menuBtn" aria-label="Чаты">☰</button>
+    <header class="top">
+      <button class="ico menu" id="menuBtn" type="button" aria-label="Открыть чаты">☰</button>
       <div class="av" id="topAv">✦</div>
       <div class="inf"><b id="title">Выбери чат</b><small id="sub">Добавь модель, чтобы начать</small></div>
-      <button class="ico" id="clearBtn" title="Очистить">🗑</button>
-    </div>
-    <div class="msgs" id="msgs"></div>
-    <div class="typing hidden" id="typing">ИИ печатает <b>.</b><b>.</b><b>.</b></div>
-    <div class="comp">
+      <button class="ico" id="clearBtn" type="button" title="Очистить переписку" aria-label="Очистить переписку">🗑</button>
+    </header>
+
+    <div class="msgs" id="msgs" aria-live="polite"></div>
+    <div class="typing hidden" id="typing">ИИ готовит ответ…</div>
+
+    <footer class="comp">
       <div class="prev" id="prev"></div>
       <div class="box">
-        <button class="ico" id="attach" aria-label="Файл">📎</button>
-        <input id="file" type="file" multiple class="hidden">
-        <textarea id="inp" rows="1" placeholder="Напиши сообщение…"></textarea>
-        <button class="send" id="send" aria-label="Отправить">➤</button>
+        <button class="ico" id="attach" type="button" aria-label="Прикрепить файл">📎</button>
+        <input id="file" type="file" multiple accept="image/*,.txt,.md,.csv,.json,.log,.xml,.html,.css,.js,.py,.yaml,.yml" hidden>
+        <textarea id="inp" rows="1" placeholder="Напиши сообщение…" aria-label="Сообщение"></textarea>
+        <button class="send" id="send" type="button" aria-label="Отправить">➤</button>
       </div>
-    </div>
+    </footer>
   </main>
 </div>
 
 <div class="modal hidden" id="modal">
   <form class="card" id="form">
     <h2>Новый чат с ИИ</h2>
-    <p>Точное имя модели, API-ключ и адрес API. Всё хранится только в этом браузере.</p>
-    <div class="f"><label>Название модели</label><input id="mName" placeholder="например, gpt-4o" autocomplete="off" required></div>
-    <div class="f"><label>API-ключ</label><input id="mKey" type="password" placeholder="sk-…" autocomplete="off" required></div>
-    <div class="f"><label>Ссылка API</label><input id="mUrl" value="https://darkapi.shop" required></div>
-    <div class="er" id="mErr"></div>
-    <div class="acts"><button type="button" id="cancel">Отмена</button><button class="ok" type="submit">Добавить</button></div>
+    <p>Укажи модель, API-ключ и адрес совместимого API.</p>
+    <div class="field">
+      <label for="mName">Название модели</label>
+      <input id="mName" placeholder="например, gpt-4o" autocomplete="off" required>
+    </div>
+    <div class="field">
+      <label for="mKey">API-ключ</label>
+      <input id="mKey" type="password" placeholder="API-ключ" autocomplete="new-password" required>
+    </div>
+    <div class="field">
+      <label for="mUrl">Адрес API</label>
+      <input id="mUrl" type="url" value="https://darkapi.shop" required>
+    </div>
+    <div class="error" id="formError" role="alert"></div>
+    <div class="actions">
+      <button id="cancel" type="button">Отмена</button>
+      <button class="ok" type="submit">Добавить</button>
+    </div>
   </form>
 </div>
 
 <script>
-// "" = тот же сайт, где открыт index.html (Flask). Если фронтенд на GitHub Pages,
-// а main.py лежит на хостинге — впиши сюда его адрес, например "https://my-app.onrender.com"
-const BACKEND = "";
-// Адрес Cloudflare Worker (см. worker.js), например "https://ai-proxy.твой-ник.workers.dev"
+"use strict";
+
+// Адрес вашего Cloudflare Worker.
 const PROXY = "https://ai-proxy.8o8o99oooooo.workers.dev/";
+
+// Если используете backend вместо Worker, укажите его адрес.
+// При пустом значении запрос идёт через PROXY.
+const BACKEND = "";
+
 const DEFAULT_URL = "https://darkapi.shop";
-const KEY = "telegram_ai_chat_manager_v2";
+const STORAGE_KEY = "telegram_ai_chat_manager_v2";
+const MAX_FILES = 5;
+const MAX_FILE_SIZE = 15 * 1024 * 1024;
+const MAX_FILE_TEXT = 20000;
+
 const tg = window.Telegram?.WebApp;
-try { tg?.ready(); tg?.expand(); } catch (e) {}
+try {
+  tg?.ready();
+  tg?.expand();
+} catch (_) {}
 
 const $ = id => document.getElementById(id);
-let chats = [], activeId = null, pending = [], busy = false;
+let chats = [];
+let activeId = null;
+let pending = [];
+let busy = false;
 
-function save() { try { localStorage.setItem(KEY, JSON.stringify({chats, activeId})); } catch (e) { console.warn(e); } }
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({chats, activeId}));
+  } catch (error) {
+    console.warn("Не удалось сохранить историю:", error);
+  }
+}
+
 function load() {
   try {
-    const s = JSON.parse(localStorage.getItem(KEY) || "null");
-    if (s && Array.isArray(s.chats)) {
-      chats = s.chats.filter(c => c && c.id && c.name).map(c => ({id: String(c.id), name: String(c.name), key: String(c.key || ""), url: String(c.url || DEFAULT_URL), messages: Array.isArray(c.messages) ? c.messages : []}));
-      activeId = chats.some(c => c.id === s.activeId) ? s.activeId : (chats[0]?.id || null);
-    }
-  } catch (e) { chats = []; }
-}
-const active = () => chats.find(c => c.id === activeId) || null;
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if (!saved || !Array.isArray(saved.chats)) return;
 
-const BRANDS = [["claude","✳","#f6e1d3","#b4532a","Claude"],["deepseek","🐋","#dbeaff","#1a63c4","DeepSeek"],["gemini","✦","#e6e1ff","#5d49c9","Gemini"],["grok","𝕏","#e4e8ee","#1d2732","Grok"],["gpt","◎","#d9f5ea","#087a63","ChatGPT"],["openai","◎","#d9f5ea","#087a63","OpenAI"]];
-function brand(name) {
-  const n = name.toLowerCase(), b = BRANDS.find(x => n.includes(x[0]));
-  return b ? {t: b[1], bg: b[2], fg: b[3], name: b[4]} : {t: name.slice(0, 2).toUpperCase(), bg: "#ffe3d2", fg: "#b4532a", name};
+    chats = saved.chats
+      .filter(chat => chat && chat.id && chat.name)
+      .map(chat => ({
+        id: String(chat.id),
+        name: String(chat.name),
+        key: String(chat.key || ""),
+        url: String(chat.url || DEFAULT_URL),
+        messages: Array.isArray(chat.messages) ? chat.messages : []
+      }));
+
+    activeId = chats.some(chat => chat.id === saved.activeId)
+      ? saved.activeId
+      : chats[0]?.id || null;
+  } catch (error) {
+    chats = [];
+    activeId = null;
+  }
 }
-function paintAv(el, name) { const b = brand(name); el.textContent = b.t; el.style.background = b.bg; el.style.color = b.fg; el.title = b.name; }
+
+const active = () => chats.find(chat => chat.id === activeId) || null;
+
+const BRANDS = [
+  ["claude","✳","#f6e1d3","#b4532a","Claude"],
+  ["deepseek","🐋","#dbeaff","#1a63c4","DeepSeek"],
+  ["gemini","✦","#e6e1ff","#5d49c9","Gemini"],
+  ["grok","𝕏","#e4e8ee","#1d2732","Grok"],
+  ["gpt","◎","#d9f5ea","#087a63","ChatGPT"],
+  ["openai","◎","#d9f5ea","#087a63","OpenAI"]
+];
+
+function brand(name) {
+  const lower = String(name || "").toLowerCase();
+  const found = BRANDS.find(item => lower.includes(item[0]));
+  return found
+    ? {text:found[1], bg:found[2], fg:found[3], name:found[4]}
+    : {text:String(name || "ИИ").slice(0,2).toUpperCase(), bg:"#ffe3d2", fg:"#b4532a", name:name || "ИИ"};
+}
+
+function paintAvatar(element, name) {
+  const model = brand(name);
+  element.textContent = model.text;
+  element.style.background = model.bg;
+  element.style.color = model.fg;
+  element.title = model.name;
+}
 
 function renderList() {
-  const l = $("list"); l.replaceChildren();
-  chats.forEach(c => {
-    const r = document.createElement("div"); r.className = "row" + (c.id === activeId ? " on" : "");
-    const av = document.createElement("div"); av.className = "av"; paintAv(av, c.name);
-    const inf = document.createElement("div"); inf.className = "inf";
-    const b = document.createElement("b"); b.textContent = c.name;
-    const s = document.createElement("small"); s.textContent = brand(c.name).name + " · " + c.messages.length + " сообщ.";
-    inf.append(b, s);
-    const x = document.createElement("button"); x.className = "x"; x.textContent = "×"; x.title = "Удалить";
-    x.onclick = e => { e.stopPropagation(); del(c.id); };
-    r.append(av, inf, x); r.onclick = () => { select(c.id); $("side").classList.remove("open"); };
-    l.append(r);
+  const list = $("list");
+  const query = $("search").value.trim().toLowerCase();
+  list.replaceChildren();
+
+  const filtered = chats.filter(chat => chat.name.toLowerCase().includes(query));
+
+  if (!filtered.length && query) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Чаты не найдены";
+    list.append(empty);
+    return;
+  }
+
+  filtered.forEach(chat => {
+    const row = document.createElement("div");
+    row.className = "row" + (chat.id === activeId ? " on" : "");
+
+    const avatar = document.createElement("div");
+    avatar.className = "av";
+    paintAvatar(avatar, chat.name);
+
+    const info = document.createElement("div");
+    info.className = "inf";
+
+    const title = document.createElement("b");
+    title.textContent = chat.name;
+
+    const subtitle = document.createElement("small");
+    subtitle.textContent = brand(chat.name).name + " · " + chat.messages.length + " сообщ.";
+
+    info.append(title, subtitle);
+
+    const remove = document.createElement("button");
+    remove.className = "x";
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.title = "Удалить чат";
+    remove.setAttribute("aria-label", "Удалить чат " + chat.name);
+    remove.onclick = event => {
+      event.stopPropagation();
+      deleteChat(chat.id);
+    };
+
+    row.append(avatar, info, remove);
+    row.onclick = () => {
+      selectChat(chat.id);
+      $("side").classList.remove("open");
+    };
+
+    list.append(row);
   });
 }
 
-// безопасный мини-markdown: код, `inline`, **жирный**
-function esc(s) { return s.replace(/[&<>]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c])); }
-function md(t) {
-  const parts = t.split(/```/);
-  return parts.map((p, i) => {
-    if (i % 2) return "<pre><code>" + esc(p.replace(/^[\w+-]*\n/, "").replace(/\n$/, "")) + "</code></pre>";
-    return esc(p).replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+function escapeHTML(text) {
+  return String(text).replace(/[&<>]/g, char => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;"
+  })[char]);
+}
+
+function renderMarkdown(text) {
+  return String(text).split(/
+/).map((part, index) => {
+    if (index % 2) {
+      return "<pre><code>" +
+        escapeHTML(part.replace(/^[\w+-]*\n/, "").replace(/\n$/, "")) +
+        "</code></pre>";
+    }
+
+    return escapeHTML(part)
+      .replace(/([^\n]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
   }).join("");
 }
 
-function renderMsgs() {
-  const a = $("msgs"), c = active(); a.replaceChildren();
-  if (!c || !c.messages.length) {
-    const e = document.createElement("div"); e.className = "empty";
-    e.innerHTML = c ? "<big>💬</big><b>Начни общение</b><br>Напиши сообщение или прикрепи фото / файл."
-                    : "<big>✦</big><b>Пока нет чатов</b><br>Нажми «Новый чат», чтобы подключить свою модель.";
-    a.append(e); return;
+function renderMessages() {
+  const container = $("msgs");
+  const chat = active();
+  container.replaceChildren();
+
+  if (!chat || !chat.messages.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.innerHTML = chat
+      ? "<big>💬</big><b>Начни общение</b><br>Напиши сообщение или прикрепи файл."
+      : "<big>✦</big><b>Пока нет чатов</b><br>Нажми «Новый чат», чтобы добавить модель.";
+    container.append(empty);
+    return;
   }
-  c.messages.forEach(m => {
-    const d = document.createElement("div"); d.className = "m " + m.who + (m.err ? " err" : "");
-    if (m.who === "ai") d.innerHTML = md(m.text || ""); else d.textContent = m.text || "";
-    if (m.files?.length) {
-      const t = document.createElement("div"); t.className = "tags";
-      m.files.forEach(f => { const g = document.createElement("span"); g.className = "tag"; g.textContent = (f.type?.startsWith("image/") ? "🖼 " : "📎 ") + f.name; t.append(g); });
-      d.append(t);
+
+  chat.messages.forEach(message => {
+    const bubble = document.createElement("div");
+    bubble.className = "m " + (message.who === "user" ? "user" : "ai") +
+      (message.err ? " err" : "");
+
+    if (message.who === "ai") {
+      bubble.innerHTML = renderMarkdown(message.text || "");
+    } else {
+      bubble.textContent = message.text || "";
     }
-    if (m.who === "ai" && !m.err) {
-      const cp = document.createElement("button"); cp.className = "cp"; cp.textContent = "копировать";
-      cp.onclick = () => { navigator.clipboard?.writeText(m.text); cp.textContent = "готово ✓"; setTimeout(() => cp.textContent = "копировать", 1200); };
-      d.append(cp);
+
+    if (Array.isArray(message.files) && message.files.length) {
+      const tags = document.createElement("div");
+      tags.className = "tags";
+
+      message.files.forEach(file => {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = (file.type?.startsWith("image/") ? "🖼 " : "📎 ") + file.name;
+        tags.append(tag);
+      });
+
+      bubble.append(tags);
     }
-    a.append(d);
+
+    if (message.who === "ai" && !message.err) {
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "copy";
+      copy.textContent = "Копировать";
+      copy.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(message.text || "");
+          copy.textContent = "Скопировано ✓";
+        } catch (_) {
+          copy.textContent = "Не удалось скопировать";
+        }
+        setTimeout(() => copy.textContent = "Копировать", 1300);
+      };
+      bubble.append(copy);
+    }
+
+    container.append(bubble);
   });
-  a.scrollTop = a.scrollHeight;
+
+  container.scrollTop = container.scrollHeight;
 }
 
-function select(id) {
-  activeId = id; save();
-  const c = active();
-  $("title").textContent = c ? c.name : "Выбери чат";
-  $("sub").textContent = c ? "Модель подключена" : "Добавь модель, чтобы начать";
-  if (c) paintAv($("topAv"), c.name); else { $("topAv").textContent = "✦"; $("topAv").style.cssText = ""; }
+function selectChat(id) {
+  activeId = id;
+  save();
+
+  const chat = active();
+  $("title").textContent = chat ? chat.name : "Выбери чат";
+  $("sub").textContent = chat ? getHost(chat.url) : "Добавь модель, чтобы начать";
+
+  if (chat) paintAvatar($("topAv"), chat.name);
+  else {
+    $("topAv").textContent = "✦";
+    $("topAv").style.cssText = "";
+  }
+
+  $("inp").placeholder = chat ? "Напиши сообщение…" : "Сначала добавь чат…";
   updateButtons();
-  $("inp").placeholder = c ? "Напиши сообщение…" : "Сначала добавь чат…";
-  renderList(); renderMsgs();
-}
-function updateButtons() {
-  const c = active();
-  $("inp").disabled = !c; $("attach").disabled = !c; $("send").disabled = !c || busy; $("clearBtn").disabled = !c;
-}
-function del(id) {
-  const c = chats.find(x => x.id === id);
-  if (!c || !confirm("Удалить чат «" + c.name + "»?")) return;
-  chats = chats.filter(x => x.id !== id);
-  select(activeId === id ? (chats[0]?.id || null) : activeId);
+  renderList();
+  renderMessages();
 }
 
-const openM = () => { $("modal").classList.remove("hidden"); $("mErr").textContent = ""; $("mName").focus(); };
-const closeM = () => { $("modal").classList.add("hidden"); $("form").reset(); $("mUrl").value = DEFAULT_URL; };
-$("addBtn").onclick = () => { $("side").classList.remove("open"); openM(); };
-$("cancel").onclick = closeM;
-$("modal").addEventListener("click", e => { if (e.target === $("modal")) closeM(); });
+function getHost(url) {
+  try {
+    return new URL(url).host;
+  } catch (_) {
+    return "Модель подключена";
+  }
+}
+
+function updateButtons() {
+  const chat = active();
+  $("inp").disabled = !chat || busy;
+  $("attach").disabled = !chat || busy;
+  $("send").disabled = !chat || busy;
+  $("clearBtn").disabled = !chat || busy;
+}
+
+function deleteChat(id) {
+  const chat = chats.find(item => item.id === id);
+  if (!chat || !confirm("Удалить чат «" + chat.name + "»?")) return;
+
+  chats = chats.filter(item => item.id !== id);
+  if (activeId === id) activeId = chats[0]?.id || null;
+
+  save();
+  selectChat(activeId);
+}
+
+function openModal() {
+  $("formError").textContent = "";
+  $("modal").classList.remove("hidden");
+  setTimeout(() => $("mName").focus(), 30);
+}
+
+function closeModal() {
+  $("modal").classList.add("hidden");
+  $("form").reset();
+  $("mUrl").value = DEFAULT_URL;
+  $("formError").textContent = "";
+}
+
+$("addBtn").onclick = () => {
+  $("side").classList.remove("open");
+  openModal();
+};
+$("cancel").onclick = closeModal;
 $("menuBtn").onclick = () => $("side").classList.toggle("open");
-$("form").addEventListener("submit", e => {
-  e.preventDefault();
-  const name = $("mName").value.trim(), key = $("mKey").value.trim(), url = $("mUrl").value.trim().replace(/\/+$/, "");
-  if (!name || !key || !url) { $("mErr").textContent = "Заполни все поля."; return; }
-  if (!/^https?:\/\//i.test(url)) { $("mErr").textContent = "Ссылка должна начинаться с https://"; return; }
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+$("search").addEventListener("input", renderList);
+
+$("modal").addEventListener("click", event => {
+  if (event.target === $("modal")) closeModal();
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    closeModal();
+    $("side").classList.remove("open");
+  }
+});
+
+$("form").addEventListener("submit", event => {
+  event.preventDefault();
+
+  const name = $("mName").value.trim();
+  const key = $("mKey").value.trim();
+  const url = $("mUrl").value.trim().replace(/\/+$/, "");
+
+  if (!name || !key || !url) {
+    $("formError").textContent = "Заполни все поля.";
+    return;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (!["https:", "http:"].includes(parsed.protocol)) throw new Error();
+  } catch (_) {
+    $("formError").textContent = "Укажи корректный адрес API.";
+    return;
+  }
+
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   chats.push({id, name, key, url, messages: []});
-  closeM(); select(id);
+  closeModal();
+  selectChat(id);
 });
 
 $("attach").onclick = () => $("file").click();
-function addFiles(list) {
+
+function addFiles(files) {
   if (!active()) return;
+
   let skipped = 0;
-  for (const f of list) {
-    if (pending.length >= 5 || f.size > 15 * 1024 * 1024) { skipped++; continue; }
-    pending.push(f);
+  for (const file of files) {
+    if (pending.length >= MAX_FILES || file.size > MAX_FILE_SIZE) {
+      skipped++;
+      continue;
+    }
+    pending.push(file);
   }
-  if (skipped) alert("Часть файлов не добавлена: максимум 5 файлов по 15 МБ.");
-  renderPrev();
+
+  if (skipped) alert("Лимит: до 5 файлов, каждый не больше 15 МБ.");
+  renderPending();
 }
-$("file").addEventListener("change", () => { addFiles(Array.from($("file").files)); $("file").value = ""; });
-addEventListener("dragover", e => e.preventDefault());
-addEventListener("drop", e => { e.preventDefault(); addFiles(Array.from(e.dataTransfer?.files || [])); });
-addEventListener("paste", e => { const fs = Array.from(e.clipboardData?.files || []); if (fs.length) { e.preventDefault(); addFiles(fs); } });
-function renderPrev() {
-  $("prev").replaceChildren();
-  pending.forEach((f, i) => {
-    const p = document.createElement("div"); p.className = "pv";
-    const s = document.createElement("span"); s.textContent = (f.type.startsWith("image/") ? "🖼 " : "📎 ") + f.name;
-    const x = document.createElement("button"); x.textContent = "×"; x.onclick = () => { pending.splice(i, 1); renderPrev(); };
-    p.append(s, x); $("prev").append(p);
+
+$("file").addEventListener("change", () => {
+  addFiles(Array.from($("file").files));
+  $("file").value = "";
+});
+
+window.addEventListener("dragover", event => event.preventDefault());
+window.addEventListener("drop", event => {
+  event.preventDefault();
+  addFiles(Array.from(event.dataTransfer?.files || []));
+});
+
+window.addEventListener("paste", event => {
+  const files = Array.from(event.clipboardData?.files || []);
+  if (files.length) {
+    event.preventDefault();
+    addFiles(files);
+  }
+});
+
+function renderPending() {
+  const container = $("prev");
+  container.replaceChildren();
+
+  pending.forEach((file, index) => {
+    const item = document.createElement("div");
+    item.className = "pv";
+
+    const label = document.createElement("span");
+    label.textContent = (file.type.startsWith("image/") ? "🖼 " : "📎 ") + file.name;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", "Удалить файл " + file.name);
+    remove.onclick = () => {
+      pending.splice(index, 1);
+      renderPending();
+    };
+
+    item.append(label, remove);
+    container.append(item);
   });
 }
 
-// ---------- отправка ----------
-const toDataURL = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f); });
-const TEXT_RE = /\.(txt|md|csv|tsv|json|log|xml|html?|css|js|jsx|ts|tsx|py|java|c|h|cpp|cs|go|rs|php|rb|sql|ya?ml|ini|toml|sh|bat|env)$/i;
-const LIBS = {
-  pdf: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
-  pdfWorker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
-  docx: "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js",
-  xlsx: "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
-  zip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
-};
-const loaded = {};
-const loadJS = src => loaded[src] || (loaded[src] = new Promise((ok, no) => {
-  const s = document.createElement("script"); s.src = src; s.onload = ok;
-  s.onerror = () => { delete loaded[src]; no(new Error("не загрузилась библиотека (нет интернета?)")); };
-  document.head.append(s);
-}));
-const MAX_PER_FILE = 20000, MAX_TOTAL = 60000;
+const toDataURL = file => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = () => reject(new Error("Не удалось прочитать изображение."));
+  reader.readAsDataURL(file);
+});
 
-async function extract(f) {
-  const n = f.name.toLowerCase();
-  if (TEXT_RE.test(n)) return await f.text();
-  const buf = await f.arrayBuffer();
-  if (n.endsWith(".pdf")) {
-    await loadJS(LIBS.pdf);
-    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      const code = await (await fetch(LIBS.pdfWorker)).text();
-      pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([code], {type: "text/javascript"}));
+async function prepareFiles(files) {
+  const images = [];
+  const textParts = [];
+
+  for (const file of files) {
+    if (file.type.startsWith("image/")) {
+      images.push(file);
+      continue;
     }
-    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-    let out = "";
-    for (let i = 1; i <= Math.min(pdf.numPages, 40) && out.length < MAX_PER_FILE; i++) {
-      const tc = await (await pdf.getPage(i)).getTextContent();
-      out += "\n--- стр. " + i + " ---\n" + tc.items.map(x => x.str).join(" ");
+
+    const allowedText =
+      /\.(txt|md|csv|tsv|json|log|xml|html?|css|js|py|ya?ml)$/i.test(file.name);
+
+    if (!allowedText) {
+      textParts.push("[Файл " + file.name + ": этот формат не читается в браузере.]");
+      continue;
     }
-    return out.trim() || "(в PDF нет текстового слоя — возможно, это скан)";
-  }
-  if (n.endsWith(".docx")) { await loadJS(LIBS.docx); return (await mammoth.extractRawText({arrayBuffer: buf})).value; }
-  if (/\.xlsx?$/.test(n)) {
-    await loadJS(LIBS.xlsx);
-    const wb = XLSX.read(buf, {type: "array"});
-    return wb.SheetNames.map(s => "## Лист: " + s + "\n" + XLSX.utils.sheet_to_csv(wb.Sheets[s])).join("\n\n");
-  }
-  if (n.endsWith(".pptx")) {
-    await loadJS(LIBS.zip);
-    const z = await JSZip.loadAsync(buf);
-    const slides = Object.keys(z.files).filter(k => /^ppt\/slides\/slide\d+\.xml$/.test(k)).sort((a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/)));
-    let out = "";
-    for (const [i, k] of slides.entries()) {
-      const xml = await z.files[k].async("string");
-      out += "\n--- слайд " + (i + 1) + " ---\n" + [...xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m => m[1]).join(" ");
-    }
-    return out.trim();
-  }
-  if (n.endsWith(".zip")) {
-    await loadJS(LIBS.zip);
-    const z = await JSZip.loadAsync(buf);
-    const names = Object.keys(z.files).filter(k => !z.files[k].dir);
-    let out = "Файлы в архиве:\n" + names.slice(0, 200).join("\n");
-    for (const k of names.filter(k => TEXT_RE.test(k)).slice(0, 15)) out += "\n\n[" + k + "]\n" + (await z.files[k].async("string")).slice(0, 4000);
-    return out;
-  }
-  throw new Error("формат не поддерживается (старые .doc/.ppt сохрани как .docx/.pptx)");
-}
 
-async function prepare(files) {
-  const images = []; let extra = "";
-  for (const f of files) {
-    if (f.type.startsWith("image/")) { images.push(f); continue; }
-    let part;
-    try { part = (await extract(f)).slice(0, MAX_PER_FILE); }
-    catch (e) { part = "(не удалось прочитать: " + e.message + ")"; }
-    extra += (extra ? "\n\n" : "") + "[Файл " + f.name + "]\n" + part;
-    if (extra.length > MAX_TOTAL) { extra = extra.slice(0, MAX_TOTAL) + "\n…(обрезано)"; break; }
-  }
-  return {extra, images};
-}
-
-function endpoints(u) {
-  if (u.endsWith("/chat/completions")) return [u];
-  if (u.endsWith("/v1")) return [u + "/chat/completions"];
-  return [u + "/v1/chat/completions", u + "/chat/completions"];
-}
-function history(c) {  // последние сообщения как контекст (без текущего), включая текст вложений
-  return c.messages.filter(m => !m.err && m.text).slice(-21, -1).map(m => ({role: m.who === "ai" ? "assistant" : "user", content: m.text + (m.ctx ? "\n\n" + m.ctx : "")}));
-}
-const fullText = (text, prep) => [text, prep.extra].filter(Boolean).join("\n\n") || "Посмотри вложения.";
-
-async function viaBackend(c, text, prep) {
-  const f = new FormData();
-  f.append("message", fullText(text, prep)); f.append("model", c.name); f.append("api_key", c.key); f.append("api_url", c.url);
-  f.append("history", JSON.stringify(history(c)));
-  prep.images.forEach(x => f.append("files", x, x.name));
-  const r = await fetch(BACKEND + "/api/chat", {method: "POST", body: f});
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(d.error || "Ошибка сервера (" + r.status + ")"); e.status = r.status; throw e; }
-  return d.reply || "Пустой ответ.";
-}
-
-async function direct(c, text, prep) {  // прямой запрос из браузера / через Cloudflare Worker
-  const parts = [{type: "text", text: fullText(text, prep)}];
-  for (const im of prep.images) parts.push({type: "image_url", image_url: {url: await toDataURL(im)}});
-  const body = {model: c.name, messages: [{role: "system", content: "Ты полезный ИИ-помощник. Отвечай на языке пользователя."}, ...history(c), {role: "user", content: parts.length === 1 ? parts[0].text : parts}]};
-  let last = "";
-  for (const ep of endpoints(c.url)) {
-    let r;
     try {
-      r = PROXY
-        ? await fetch(PROXY, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({url: ep, key: c.key, body})})
-        : await fetch(ep, {method: "POST", headers: {"Content-Type": "application/json", Authorization: "Bearer " + c.key}, body: JSON.stringify(body)});
-    } catch (e) { throw new Error(PROXY ? "Воркер " + PROXY + " недоступен или отклонил запрос. Проверь ALLOWED_ORIGIN = " + location.origin : "PROXY в index.html пустой — впиши адрес Cloudflare Worker."); }
-    if (r.status === 404 || r.status === 405) { last = "HTTP " + r.status; continue; }
-    const t = await r.text();
-    if (!r.ok) throw new Error("API вернул HTTP " + r.status + ": " + t.slice(0, 300));
-    let d; try { d = JSON.parse(t); } catch { throw new Error("API вернул не JSON. Проверь адрес."); }
-    let a = d.choices?.[0]?.message?.content;
-    if (Array.isArray(a)) a = a.map(x => x.text || "").join("\n");
-    return a || "Пустой ответ.";
+      const text = await file.text();
+      textParts.push("[Файл " + file.name + "]\n" + text.slice(0, MAX_FILE_TEXT));
+    } catch (_) {
+      textParts.push("[Файл " + file.name + ": не удалось прочитать.]");
+    }
   }
-  throw new Error("Адрес API не найден (" + last + ")");
+
+  return {images, extra: textParts.join("\n\n")};
 }
 
-async function ask(c, text, prep) {
-  const onPages = /github\.io$/i.test(location.hostname) || location.protocol === "file:";
-  if (BACKEND || !onPages) {
-    try { return await viaBackend(c, text, prep); }
-    catch (e) { if (!(e.status === 404 || e.status === 405 || e instanceof TypeError)) throw e; }  // сервера нет → напрямую
+function getHistory(chat) {
+  return chat.messages
+    .filter(message => !message.err && message.text)
+    .slice(-20)
+    .map(message => ({
+      role: message.who === "ai" ? "assistant" : "user",
+      content: message.text + (message.ctx ? "\n\n" + message.ctx : "")
+    }));
+}
+
+function endpoints(url) {
+  if (url.endsWith("/chat/completions")) return [url];
+  if (url.endsWith("/v1")) return [url + "/chat/completions"];
+  return [url + "/v1/chat/completions", url + "/chat/completions"];
+}
+
+async function requestWorker(url, key, body) {
+  const response = await fetch(PROXY, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url, key, body})
+  });
+
+  const raw = await response.text();
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (_) {
+    data = null;
   }
-  return direct(c, text, prep);
+
+  if (!response.ok) {
+    const message = data?.error || raw.slice(0, 300) || "Ошибка Worker";
+    throw new Error("Worker HTTP " + response.status + ": " + message);
+  }
+
+  if (!data) throw new Error("Worker вернул ответ не в формате JSON.");
+  return data;
+}
+
+async function ask(chat, text, prepared) {
+  const userText = [text, prepared.extra].filter(Boolean).join("\n\n") ||
+    "Посмотри вложения.";
+
+  const content = [{type:"text", text:userText}];
+  for (const image of prepared.images) {
+    content.push({
+      type:"image_url",
+      image_url:{url:await toDataURL(image)}
+    });
+  }
+
+  const body = {
+    model: chat.name,
+    messages: [
+      {role:"system", content:"Ты полезный ИИ-помощник. Отвечай на языке пользователя."},
+      ...getHistory(chat),
+      {role:"user", content:content.length === 1 ? userText : content}
+    ]
+  };
+
+  let lastError;
+
+  for (const endpoint of endpoints(chat.url)) {
+    let data;
+
+    try {
+      data = await requestWorker(endpoint, chat.key, body);
+    } catch (error) {
+      // Переходим ко второму стандартному пути только при 404/405.
+      if (/Worker HTTP (404|405):/.test(error.message)) {
+        lastError = error;
+        continue;
+      }
+      throw error;
+    }
+
+    let answer = data.choices?.[0]?.message?.content;
+    if (Array.isArray(answer)) {
+      answer = answer.map(part => part.text || "").join("\n");
+    }
+    return answer || "Пустой ответ от модели.";
+  }
+
+  throw lastError || new Error("Не удалось найти endpoint chat/completions.");
 }
 
 async function send() {
-  const c = active(), text = $("inp").value.trim();
-  if (!c || busy || (!text && !pending.length)) return;
-  const files = pending.slice();
-  busy = true; updateButtons();
-  $("inp").value = ""; $("inp").style.height = "auto"; pending = []; renderPrev();
-  $("typing").classList.remove("hidden");
-  const prep = await prepare(files);
-  c.messages.push({who: "user", text: text || "Посмотри вложения.", ctx: prep.extra.slice(0, MAX_PER_FILE), files: files.map(f => ({name: f.name, type: f.type}))});
-  save(); renderMsgs(); renderList();
-  try { c.messages.push({who: "ai", text: await ask(c, text, prep)}); }
-  catch (e) { c.messages.push({who: "ai", err: true, text: "Не удалось получить ответ: " + e.message + "\nПроверь адрес API, название модели и ключ."}); }
-  busy = false; save(); $("typing").classList.add("hidden"); updateButtons(); renderMsgs(); renderList();
-}
-$("send").onclick = send;
-$("inp").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !matchMedia("(pointer:coarse)").matches) { e.preventDefault(); send(); } });
-$("inp").addEventListener("input", () => { const t = $("inp"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 140) + "px"; });
-$("clearBtn").onclick = () => { const c = active(); if (c && confirm("Очистить переписку?")) { c.messages = []; save(); renderMsgs(); renderList(); } };
+  const chat = active();
+  const text = $("inp").value.trim();
 
-load(); select(activeId);
+  if (!chat || busy || (!text && !pending.length)) return;
+
+  const files = pending.slice();
+  busy = true;
+  updateButtons();
+
+  $("inp").value = "";
+  $("inp").style.height = "auto";
+  pending = [];
+  renderPending();
+  $("typing").classList.remove("hidden");
+
+  try {
+    const prepared = await prepareFiles(files);
+
+    chat.messages.push({
+      who:"user",
+      text:text || "Посмотри вложения.",
+      ctx:prepared.extra,
+      files:files.map(file => ({name:file.name, type:file.type}))
+    });
+
+    save();
+    renderMessages();
+    renderList();
+
+    const answer = await ask(chat, text, prepared);
+    chat.messages.push({who:"ai", text:answer});
+  } catch (error) {
+    chat.messages.push({
+      who:"ai",
+      err:true,
+      text:"Не удалось получить ответ: " + error.message
+    });
+  } finally {
+    busy = false;
+    $("typing").classList.add("hidden");
+    updateButtons();
+    save();
+    renderMessages();
+    renderList();
+  }
+}
+
+$("send").onclick = send;
+
+$("inp").addEventListener("keydown", event => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    send();
+  }
+});
+
+$("inp").addEventListener("input", () => {
+  const input = $("inp");
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 140) + "px";
+});
+
+$("clearBtn").onclick = () => {
+  const chat = active();
+  if (!chat || busy) return;
+
+  if (confirm("Очистить переписку?")) {
+    chat.messages = [];
+    save();
+    renderMessages();
+    renderList();
+  }
+};
+
+load();
+selectChat(activeId);
 </script>
 </body>
 </html>
