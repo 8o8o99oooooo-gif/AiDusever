@@ -118,7 +118,7 @@ def chat():
         endpoints = [api_url + "/v1/chat/completions", api_url + "/chat/completions"]
 
     payload = {"model": model, "messages": [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": (request.form.get("system") or SYSTEM_PROMPT)[:4000]},
         *parse_history(request.form.get("history")),
         {"role": "user", "content": user_content},
     ]}
