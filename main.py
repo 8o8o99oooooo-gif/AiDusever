@@ -68,20 +68,38 @@ def chat():
         else:
             parts.append(f"\nПользователь прикрепил файл «{name}». Извлечение текста из этого формата не настроено.")
 
-    endpoint = api_url if api_url.endswith("/chat/completions") else api_url + "/chat/completions"
+    # Accept either a full chat-completions URL or a provider base URL.
+    if api_url.endswith("/chat/completions"):
+        endpoints = [api_url]
+    elif api_url.endswith("/v1"):
+        endpoints = [api_url + "/chat/completions"]
+    else:
+        endpoints = [api_url + "/v1/chat/completions", api_url + "/chat/completions"]
+
     try:
-        response = requests.post(
-            endpoint,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model, "messages": [
-                {"role": "system", "content": "Ты полезный ИИ-помощник. Отвечай на языке пользователя."},
-                {"role": "user", "content": "\n".join(parts)}
-            ]},
-            timeout=90,
-        )
+        payload = {"model": model, "messages": [
+            {"role": "system", "content": "Ты полезный ИИ-помощник. Отвечай на языке пользователя."},
+            {"role": "user", "content": "\\n".join(parts)}
+        ]}
+        response = None
+        for endpoint in endpoints:
+            response = requests.post(
+                endpoint,
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=payload,
+                timeout=90,
+            )
+            if response.status_code not in (404, 405) or len(endpoints) == 1:
+                break
+        if response is None:
+            return jsonify({"error": "Не удалось создать запрос к API."}), 502
         if not response.ok:
-            return jsonify({"error": f"API вернул {response.status_code}: {response.text[:400]}"}), 502
-        data = response.json()
+            detail = response.text[:500].replace("\\n", " ")
+            return jsonify({"error": f"API вернул HTTP {response.status_code}. {detail}"}), 502
+        try:
+            data = response.json()
+        except ValueError:
+            return jsonify({"error": "API вернул не JSON. Проверь адрес API и совместимость провайдера."}), 502
         answer = data["choices"][0]["message"]["content"]
         if isinstance(answer, list):
             answer = "\n".join(x.get("text", "") for x in answer if isinstance(x, dict))
