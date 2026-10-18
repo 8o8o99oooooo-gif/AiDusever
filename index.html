@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -122,6 +121,8 @@ button:disabled{opacity:.4;cursor:not-allowed}
 // "" = тот же сайт, где открыт index.html (Flask). Если фронтенд на GitHub Pages,
 // а main.py лежит на хостинге — впиши сюда его адрес, например "https://my-app.onrender.com"
 const BACKEND = "";
+// Адрес Cloudflare Worker (см. worker.js), например "https://ai-proxy.твой-ник.workers.dev"
+const PROXY = "https://ai-proxy.8o8o99oooooo.workers.dev/";
 const DEFAULT_URL = "https://darkapi.shop";
 const KEY = "telegram_ai_chat_manager_v2";
 const tg = window.Telegram?.WebApp;
@@ -289,8 +290,12 @@ async function direct(c, text, files) {  // прямой запрос из бр�
   let last = "";
   for (const ep of endpoints(c.url)) {
     let r;
-    try { r = await fetch(ep, {method: "POST", headers: {"Content-Type": "application/json", Authorization: "Bearer " + c.key}, body: JSON.stringify(body)}); }
-    catch (e) { throw new Error("Запрос заблокирован (CORS) или нет сети. Нужен сервер main.py — см. BACKEND в index.html."); }
+    try {
+      r = PROXY
+        ? await fetch(PROXY, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({url: ep, key: c.key, body})})
+        : await fetch(ep, {method: "POST", headers: {"Content-Type": "application/json", Authorization: "Bearer " + c.key}, body: JSON.stringify(body)});
+    }
+    catch (e) { throw new Error("Запрос заблокирован (CORS) или нет сети. Укажи адрес Cloudflare Worker в PROXY (index.html)."); }
     if (r.status === 404 || r.status === 405) { last = "HTTP " + r.status; continue; }
     const t = await r.text();
     if (!r.ok) throw new Error("API вернул HTTP " + r.status + ": " + t.slice(0, 300));
