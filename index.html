@@ -185,10 +185,62 @@
   if (tg) { tg.ready(); tg.expand(); }
 
   const $ = id => document.getElementById(id);
+  const STORAGE_KEY = "telegram_ai_chat_manager_v2";
+  const STORAGE_KEY = "telegram_ai_chat_manager_v2";
   let chats = [];
   let activeId = null;
   let pendingFiles = [];
   const modelInput = $("modelName"), apiKeyInput = $("apiKey"), apiUrlInput = $("apiUrl");
+
+  // Save chats, messages, model settings and API keys in this browser.
+  // Browser storage does not persist the actual bytes of attachments.
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({chats, activeId}));
+    } catch (err) {
+      console.warn("Не удалось сохранить чаты в браузере:", err);
+      alert("Не удалось сохранить данные. Возможно, память браузера заполнена.");
+    }
+  }
+  function loadState() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      if (saved && Array.isArray(saved.chats)) {
+        chats = saved.chats.filter(c => c && c.id && c.name).map(c => ({
+          id: String(c.id), name: String(c.name), key: String(c.key || ""),
+          url: String(c.url || ""), messages: Array.isArray(c.messages) ? c.messages : []
+        }));
+        activeId = chats.some(c => c.id === saved.activeId) ? saved.activeId : (chats[0]?.id || null);
+      }
+    } catch (err) {
+      console.warn("Не удалось загрузить сохранённые чаты:", err);
+      chats = []; activeId = null;
+    }
+  }
+  loadState();
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({chats, activeId}));
+    } catch (err) {
+      console.warn("Не удалось сохранить чаты в этом браузере:", err);
+    }
+  }
+  function loadState() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      if (saved && Array.isArray(saved.chats)) {
+        chats = saved.chats.filter(c => c && c.id && c.name).map(c => ({
+          id: String(c.id), name: String(c.name), key: String(c.key || ""),
+          url: String(c.url || ""), messages: Array.isArray(c.messages) ? c.messages : []
+        }));
+        activeId = chats.some(c => c.id === saved.activeId) ? saved.activeId : (chats[0]?.id || null);
+      }
+    } catch (err) {
+      console.warn("Не удалось загрузить сохранённые чаты:", err);
+      chats = []; activeId = null;
+    }
+  }
 
   function avatarFor(name) {
     const n = name.toLowerCase();
@@ -249,13 +301,14 @@
     area.scrollTop = area.scrollHeight;
   }
   function selectChat(id) {
-    activeId = id; const chat = activeChat();
+    activeId = id; saveState(); const chat = activeChat();
     $("appTitle").textContent = chat ? chat.name : "Мои ИИ-чаты";
     $("chatTitle").textContent = chat ? chat.name : "Выбери чат";
     $("chatSubtitle").textContent = chat ? "Модель ИИ подключена" : "Добавь модель ИИ, чтобы начать";
     $("activeAvatar").replaceWith(avatarNode(chat ? chat.name : "AI"));
     $("activeAvatar").id = "activeAvatar";
     $("messageInput").disabled = !chat; $("sendBtn").disabled = !chat; $("attachBtn").disabled = !chat;
+    $("messageInput").placeholder = chat ? "Напиши сообщение…" : "Сначала добавь или выбери чат…";
     renderList(); renderMessages();
   }
   function deleteChat(id) {
@@ -263,6 +316,7 @@
     if (!chat || !confirm("Удалить чат «" + chat.name + "»?")) return;
     chats = chats.filter(c => c.id !== id);
     if (activeId === id) activeId = chats[0]?.id || null;
+    saveState();
     selectChat(activeId);
   }
   function openModal() { $("addModal").classList.remove("hidden"); $("modalError").textContent = ""; modelInput.focus(); }
@@ -278,6 +332,7 @@
     if (!/^https?:\/\//i.test(url)) { $("modalError").textContent = "Ссылка должна начинаться с https:// или http://."; return; }
     const id = (Date.now().toString(36) + Math.random().toString(36).slice(2,7));
     chats.push({id, name, key, url, messages:[]});
+    activeId = id; saveState();
     closeModal(); selectChat(id);
   });
 
@@ -301,6 +356,7 @@
     if (!chat || (!text && !pendingFiles.length) || $("sendBtn").disabled) return;
     const files = pendingFiles.slice();
     chat.messages.push({who:"user", text:text || "Посмотри прикреплённые файлы.", files:files.map(f=>({name:f.name,type:f.type}))});
+    saveState();
     $("messageInput").value = ""; $("messageInput").style.height = "auto"; pendingFiles=[]; renderPreview(); renderMessages();
     $("sendBtn").disabled = true; $("typing").classList.remove("hidden");
     const form = new FormData(); form.append("message", text); form.append("model", chat.name); form.append("api_key", chat.key); form.append("api_url", chat.url);
@@ -310,6 +366,7 @@
       const data = await response.json().catch(()=>({}));
       if (!response.ok) throw new Error(data.error || "Ошибка сервера");
       chat.messages.push({who:"ai", text:data.reply || "Сервер вернул пустой ответ.", files:[]});
+      saveState();
     } catch (err) {
       chat.messages.push({who:"ai", text:"Не удалось получить ответ: " + err.message + "\nПроверь, что main.py запущен, а название модели, API-ключ и адрес API указаны правильно.", files:[]});
     } finally {
@@ -319,8 +376,9 @@
   $("sendBtn").onclick = sendMessage;
   $("messageInput").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) {e.preventDefault();sendMessage();} });
   $("messageInput").addEventListener("input", () => { const el=$("messageInput"); el.style.height="auto"; el.style.height=Math.min(el.scrollHeight,130)+"px"; });
-  $("clearBtn").onclick = () => { const c=activeChat(); if(c){c.messages=[];renderMessages();} };
-  selectChat(null);
+  $("clearBtn").onclick = () => { const c=activeChat(); if(c){c.messages=[];saveState();renderMessages();} };
+  loadState();
+  selectChat(activeId);
 </script>
 </body>
 </html>
